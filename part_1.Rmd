@@ -1,0 +1,59 @@
+---
+title: "Project Part 1"
+author: "Sara Altman"
+date: "10/25/2017"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,message=FALSE}
+library(tidyverse)
+```
+
+### Continous response variable
+One possibility for a continuous response variable is the variable `obstime` which is a measure of how long the subject was sober in days. This would be interesting to use as a response variable because it would allow us to predict/learn more about relapsing habits than just using relapse/no relapse as the response. 
+
+### Binary response variable
+For a binary response variable, one possibility is the variable `relapse`, which is 1 if the subject relapsed and 0 otherwise. This would be a useful response variable since we're interested in being able to predict if someone will relapse or not given certain characteristics, as well as inferring what types of characteristics are associated with relapse. 
+
+We also might get data for healthy controls as well. In that case, we could also use whether or not someone is a drug user as a binary response variable. 
+
+### Questions to answer
+We want to know what characteristics (e.g., time sober, mental illness history, other drug use history, education level, age) are important predictors of methamphetamine use relapse, and if we can accurately predict relapse using these characteristics. We also want to know if NAcc response during a fMRI task can predict relapse well.
+
+This dataset is exciting because it can help us learn about what predicts relapse, as well as a potential way to predict if a new patient will relapse. This would be useful for people working with past and present methamphetamine users, as well as a addition to the scientific literature on addiction and relapse. 
+
+```{r}
+set.seed(1)
+data <- read_csv("~/Documents/MS&E 226/mini_project/data/relapse.csv")
+
+#split into train and test set
+train <- sample_frac(data, .8)
+test <- 
+  data %>% 
+  anti_join(train, by = "subjid")
+```
+
+
+The following table gives the percentage of rows with NA values for a given variable. 
+```{r}
+train %>% 
+  summarise_all(function(x) {mean(is.na(x))}) %>% 
+  knitr::kable()
+```
+
+If we are predicting relapse, we will exclude rows with "NA" for relapse, since we don't know if they relapsed or not. If a row does not have an "NA" value but has other "NA" values, we may still work with the remaining columns. `days2sober` has a lot of "NA"s because many of the patients never relapsed during the period when the study was conducted. 
+
+```{r}
+train %>% 
+  filter(relapse == 1) %>% 
+  ggplot(aes(years_of_use, days2relapse)) +
+  geom_point()
+```
+
+
+
+
