@@ -45,8 +45,10 @@ by_subj_no_nas <-
   by_subj %>% 
   select(vars_no_nas)
 
+#this does cross-validates lasso. alpha = 1 specifies that we want lasso. type.measure = class specifies we're doing classification. for regression, just use default (same for family)
 lasso_ind <- cv.glmnet(x = by_subj_no_nas %>% select(-subjid, -relIn6Mos) %>%  data.matrix, 
                 y = by_subj_no_nas$relIn6Mos, 
+                alpha = 1,
                 type.measure = "class",
                 family = "binomial")
 

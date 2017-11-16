@@ -174,45 +174,47 @@ by_subj_no_nas &lt;-
   by_subj %&gt;% 
   select(vars_no_nas)
 
+#this does cross-validates lasso. alpha = 1 specifies that we want lasso. type.measure = class specifies we're doing classification. for regression, just use default (same for family)
 lasso_ind &lt;- cv.glmnet(x = by_subj_no_nas %&gt;% select(-subjid, -relIn6Mos) %&gt;%  data.matrix, 
                 y = by_subj_no_nas$relIn6Mos, 
+                alpha = 1,
                 type.measure = &quot;class&quot;,
                 family = &quot;binomial&quot;)
 
 lasso_coefs &lt;- coef(lasso_ind, s = lasso_ind$lambda.1se)
 min(lasso_ind$cvm)</code></pre>
-<pre><code>## [1] 0.2307692</code></pre>
+<pre><code>## [1] 0.2564103</code></pre>
 <pre class="r"><code>lasso_coefs</code></pre>
 <pre><code>## 28 x 1 sparse Matrix of class &quot;dgCMatrix&quot;
-##                            1
-## (Intercept)       -0.5725111
-## poly_drug_dep      .        
-## depression_diag    .        
-## ptsd_diag          .        
-## age                .        
-## clinical_diag      .        
-## pref_drug          .        
-## pref_food          .        
-## pref_neut          .        
-## bis                .        
-## nacc_drugs_TR3     .        
-## nacc_drugs_TR4     .        
-## nacc_drugs_TR5     .        
-## nacc_drugs_TR6     .        
-## nacc_drugs_TR7     .        
-## nacc_food_TR3      .        
-## nacc_food_TR4      .        
-## nacc_food_TR5      .        
-## nacc_food_TR6      .        
-## nacc_food_TR7      .        
-## nacc_neutral_TR3   .        
-## nacc_neutral_TR4   .        
-## nacc_neutral_TR5   .        
-## nacc_neutral_TR6   .        
-## nacc_neutral_TR7   .        
-## nacc_drugs_beta    3.7847464
-## nacc_food_beta     .        
-## nacc_neutral_beta  3.4197140</code></pre>
+##                             1
+## (Intercept)       -1.04568229
+## poly_drug_dep     -1.70521431
+## depression_diag    0.11131158
+## ptsd_diag          .         
+## age                .         
+## clinical_diag      1.83171276
+## pref_drug          0.21239892
+## pref_food          .         
+## pref_neut         -0.45057816
+## bis                .         
+## nacc_drugs_TR3     .         
+## nacc_drugs_TR4     .         
+## nacc_drugs_TR5    -7.15782459
+## nacc_drugs_TR6     6.54226765
+## nacc_drugs_TR7     .         
+## nacc_food_TR3      .         
+## nacc_food_TR4      .         
+## nacc_food_TR5      .         
+## nacc_food_TR6     -0.04215119
+## nacc_food_TR7      .         
+## nacc_neutral_TR3  -1.22743932
+## nacc_neutral_TR4   .         
+## nacc_neutral_TR5   .         
+## nacc_neutral_TR6   3.25375973
+## nacc_neutral_TR7   .         
+## nacc_drugs_beta   12.95954205
+## nacc_food_beta     .         
+## nacc_neutral_beta  2.72828162</code></pre>
 <pre class="r"><code>test_err &lt;- function(test, mod) {
   test &lt;- as_tibble(test)
   
@@ -248,7 +250,7 @@ by_subj_cv %&gt;%
 <pre><code>## # A tibble: 1 x 1
 ##   `mean(error)`
 ##           &lt;dbl&gt;
-## 1     0.2741935</code></pre>
+## 1     0.2258065</code></pre>
 
 
 
