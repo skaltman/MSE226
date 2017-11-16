@@ -24,6 +24,8 @@ by_subj <- read_csv("../data/relapse_subjects.csv", na = c("", "NaN"))
 ```
 
 ```{r}
+is_zero <- function(x) all(mean(x^2) == 0)
+
 vars_no_nas <-
   by_subj %>% 
   summarise_all(function(x) {mean(is.na(x))}) %>% 
