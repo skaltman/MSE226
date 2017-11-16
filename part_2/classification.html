@@ -153,7 +153,9 @@ $(document).ready(function () {
 <pre class="r"><code>library(modelr)</code></pre>
 <pre class="r"><code>#got approval to use entire dataset, so we're not splitting into test and train
 by_subj &lt;- read_csv(&quot;../data/relapse_subjects.csv&quot;, na = c(&quot;&quot;, &quot;NaN&quot;))</code></pre>
-<pre class="r"><code>is_zero &lt;- function(x) all(mean(x^2) == 0)
+<pre class="r"><code>#set seed for k fold otherwise results will vary and it gets more confusing
+set.seed(1)
+is_zero &lt;- function(x) all(mean(x^2) == 0)
 
 vars_no_nas &lt;-
   by_subj %&gt;% 
@@ -181,40 +183,42 @@ lasso_ind &lt;- cv.glmnet(x = by_subj_no_nas %&gt;% select(-subjid, -relIn6Mos) 
                 type.measure = &quot;class&quot;,
                 family = &quot;binomial&quot;)
 
-lasso_coefs &lt;- coef(lasso_ind, s = lasso_ind$lambda.1se)
+#this gives us the coefficients for a choice of lambda (lambda.min is the lambda that gives smallest error. lambda.1se is the lambda that gives the error 1se away from smallest)
+lasso_coefs &lt;- coef(lasso_ind, s = lasso_ind$lambda.min)
+#this gives cv error for best performing lambda
 min(lasso_ind$cvm)</code></pre>
-<pre><code>## [1] 0.2564103</code></pre>
+<pre><code>## [1] 0.2307692</code></pre>
 <pre class="r"><code>lasso_coefs</code></pre>
 <pre><code>## 28 x 1 sparse Matrix of class &quot;dgCMatrix&quot;
 ##                             1
-## (Intercept)       -1.04568229
-## poly_drug_dep     -1.70521431
-## depression_diag    0.11131158
-## ptsd_diag          .         
-## age                .         
-## clinical_diag      1.83171276
-## pref_drug          0.21239892
-## pref_food          .         
-## pref_neut         -0.45057816
-## bis                .         
-## nacc_drugs_TR3     .         
-## nacc_drugs_TR4     .         
-## nacc_drugs_TR5    -7.15782459
-## nacc_drugs_TR6     6.54226765
-## nacc_drugs_TR7     .         
-## nacc_food_TR3      .         
-## nacc_food_TR4      .         
-## nacc_food_TR5      .         
-## nacc_food_TR6     -0.04215119
-## nacc_food_TR7      .         
-## nacc_neutral_TR3  -1.22743932
-## nacc_neutral_TR4   .         
-## nacc_neutral_TR5   .         
-## nacc_neutral_TR6   3.25375973
-## nacc_neutral_TR7   .         
-## nacc_drugs_beta   12.95954205
-## nacc_food_beta     .         
-## nacc_neutral_beta  2.72828162</code></pre>
+## (Intercept)        -1.1602946
+## poly_drug_dep      -2.9415975
+## depression_diag     0.2595432
+## ptsd_diag           .        
+## age                 .        
+## clinical_diag       2.8168766
+## pref_drug           0.3332113
+## pref_food          -0.1459551
+## pref_neut          -1.0058979
+## bis                 .        
+## nacc_drugs_TR3      .        
+## nacc_drugs_TR4      .        
+## nacc_drugs_TR5    -12.4982923
+## nacc_drugs_TR6     11.8181769
+## nacc_drugs_TR7      .        
+## nacc_food_TR3       .        
+## nacc_food_TR4       .        
+## nacc_food_TR5       .        
+## nacc_food_TR6      -1.3289838
+## nacc_food_TR7       .        
+## nacc_neutral_TR3   -1.3187046
+## nacc_neutral_TR4    .        
+## nacc_neutral_TR5    .        
+## nacc_neutral_TR6    4.0509747
+## nacc_neutral_TR7    .        
+## nacc_drugs_beta    15.9689653
+## nacc_food_beta      .        
+## nacc_neutral_beta   5.0090018</code></pre>
 <pre class="r"><code>test_err &lt;- function(test, mod) {
   test &lt;- as_tibble(test)
   
@@ -250,7 +254,7 @@ by_subj_cv %&gt;%
 <pre><code>## # A tibble: 1 x 1
 ##   `mean(error)`
 ##           &lt;dbl&gt;
-## 1     0.2258065</code></pre>
+## 1     0.2096774</code></pre>
 
 
 

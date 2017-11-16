@@ -24,6 +24,8 @@ by_subj <- read_csv("../data/relapse_subjects.csv", na = c("", "NaN"))
 ```
 
 ```{r}
+#set seed for k fold otherwise results will vary and it gets more confusing
+set.seed(1)
 is_zero <- function(x) all(mean(x^2) == 0)
 
 vars_no_nas <-
@@ -52,8 +54,11 @@ lasso_ind <- cv.glmnet(x = by_subj_no_nas %>% select(-subjid, -relIn6Mos) %>%  d
                 type.measure = "class",
                 family = "binomial")
 
-lasso_coefs <- coef(lasso_ind, s = lasso_ind$lambda.1se)
+#this gives us the coefficients for a choice of lambda (lambda.min is the lambda that gives smallest error. lambda.1se is the lambda that gives the error 1se away from smallest)
+lasso_coefs <- coef(lasso_ind, s = lasso_ind$lambda.min)
+#this gives cv error for best performing lambda
 min(lasso_ind$cvm)
+
 lasso_coefs
 ```
 
