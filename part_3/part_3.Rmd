@@ -2,7 +2,7 @@
 title: "Part 3"
 author: "Sara Altman"
 date: "12/5/2017"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -114,7 +114,7 @@ summary(fit_all_data)
 set.seed(1)
 
 by_subj_cv <-
-  by_subj %>% 
+  data %>% 
   crossv_kfold(10)
 
 #for threshold = .5
@@ -128,9 +128,9 @@ by_subj_cv %>%
          sig_05 = ifelse(p_value < .05, 1, 0),
          sig_01 = ifelse(p_value < .01, 1, 0),
          sig_001 = ifelse(p_value < .001, 1, 0))  %>% 
-  summarise(prop_05 = mean(sig_05),
-            prop_01 = mean(sig_01),
-            prop_001 = mean(sig_001)) %>% 
+  summarise(prop_sig_05 = mean(sig_05),
+            prop_sig_01 = mean(sig_01),
+            prop_sig_001 = mean(sig_001)) %>% 
   knitr::kable()
 ```
 
@@ -144,10 +144,12 @@ Post selection inference may be a problem here. We fit lots of different models 
 
 #Discussion
 
-##Practical use of models
 These models could be used for both predication and inference. The models could be used by clinicians to predict if a stimulant-dependent veteran will relapse after rehabilitation. The models could also be used to make inferences about the neuroscience of addiction.
 
-Our models should hold up well over time. There's no obvious reason to suspect that time will affect the relationship between nucleus accumbens activity and relapsing. 
+Our models should hold up well over time. There's no obvious reason to suspect that time will affect the relationship between nucleus accumbens activity and relapsing. However, updating our data and then refitting the regression model after more time has passed would be useful. This  is because our current analysis removes those who hadn't relapsed at the time the data set was completed. However, this doesn't mean that they never relapsed. It would be useful to continually follow-up with them (if possible), update our data, and then refit our regression model. Note that this isn't relevant to our current classification model, since that predicts relapse in 6 months. 
 
-more follow-up data: survey to assess well-being 
-more brain regions  
+Users of our models (e.g., clinicians helping stimulant addicts) should be aware that are data set was small and therefore our models are vulnerable to overfitting. Although we used cross-validation to get an estimate of our test error, this is likely still an underestimate of the true test error. Therefore, users of the model should be cautious about making important decisions (e.g., whether or not to give a patient extra treatment or to release them) using our model, and should definitely not rely solely on our models' predictions. 
+
+If we could recollect our data, we would try to increase the number of patients in the study. We would also increase the number of brain regions from which activity was recorded. Our current data includes covariates collected during follow-ups (e.g., obstime, relapse). We would add a survey to assess general well-being to the covariates collected during the follow-up.
+
+If we were to analyse the same data set again, we would try a) using all by-trial data to create a hierarchical model (our current models just use our by-subject data set) and b) use survival analysis to model time to relapse. 
