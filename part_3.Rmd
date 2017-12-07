@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -85,9 +85,10 @@ by_subj_cv %>%
          error = map2_dbl(test, model, test_err, threshold = .4),
          false_neg_rate = map2_dbl(test, model, test_err_fn, threshold = .4),
          false_pos_rate = map2_dbl(test, model, test_err_fp, threshold = .4)) %>% 
-  summarise(mean_error = mean(error),
-            mean_fn_rate = mean(false_neg_rate),
-            mean_fp_rate = mean(false_pos_rate))
+  summarise(`CV error rate` = mean(error),
+            `CV false negative rate` = mean(false_neg_rate),
+            `CV false positive rate` = mean(false_pos_rate)) %>% 
+  knitr::kable(digits = 2)
 ```
 
 Our estimated test error is .24.  
@@ -103,8 +104,9 @@ data %>%
     rmse = map2_dbl(mod, test, rmse)
   ) %>% 
   summarise(
-    avg_rmse = mean(rmse)
-  )
+    RMSE_CV = mean(rmse)
+  ) %>% 
+  knitr::kable(digits = 2)
 ```
 
 Our estimated test RMSE is 34.8.
@@ -121,7 +123,7 @@ fit_all_data <- glm(relIn6Mos ~ nacc_neutral_beta,
 summary(fit_all_data)
 ```
 
-- The coefficient on nacc_neutral_beta is significant at the $\alpha = .001$ level. The p-value is .004. This means that, assuming the null hypothesis is true, the probability of observing a Wald statistic as extreme as 2.869 is .004. Here, the null hypothesis is that the coefficient on `nacc_neutral_beta` is 0. 
+- The coefficient on nacc_neutral_beta is significant at the $\alpha = .001$ level. The p-value is .002. This means that, assuming the null hypothesis is true, the probability of observing a Wald statistic as extreme as 3.046 is .002. Here, the null hypothesis is that the coefficient on `nacc_neutral_beta` is 0. 
 - We only have one covariate. If the coefficient on this covariate really is 0, then the chance it will be significant at the $\alpha = .05$ level is 5\% (and is 1\% at the $\alpha = .01$ level). Therefore, the chance is low that this one covariate would be significant if the null were true. In contrast, if we had 100 covariates, we would expect 5 of them to be significant at the $\alpha = .05$ level and so we might not believe our results if it turned out that 5 of our coefficient were significant.  
 
 ## (b)
@@ -143,15 +145,15 @@ by_subj_cv %>%
          sig_05 = ifelse(p_value < .05, 1, 0),
          sig_01 = ifelse(p_value < .01, 1, 0),
          sig_001 = ifelse(p_value < .001, 1, 0))  %>% 
-  summarise(prop_sig_05 = mean(sig_05),
-            prop_sig_01 = mean(sig_01),
-            prop_sig_001 = mean(sig_001)) %>% 
+  summarise(`Proportion significant (alpha = .05)` = mean(sig_05),
+            `Proportion significant (alpha = .01)`  = mean(sig_01),
+            `Proportion significant (alpha = .001)`  = mean(sig_001)) %>% 
   knitr::kable()
 ```
 
 - We didn't have enough data for a test set and used cross-validation in the prediction part of the project. Therefore, we looked at significance of our coefficient in 10 folds.  
 - The coefficient on `nacc_neutral_beta` is significant in 100\% of the folds at the $\alpha = .05$ level and at and is significant 90\% of the time at the $\alpha = .01$ level.
-- Note that here, we run 31 hypothesis tests. Therefore, if the null is true, we should expect 5\% of our tests (1.55) to be significant at the $\alpha = .05$ level.  
+- Note that here, we run 10 hypothesis tests. Therefore, if the null is true, we should expect 5\% of our tests (half of a test) to be significant at the $\alpha = .05$ level.  
 
 ## (c)
 
@@ -189,12 +191,14 @@ mod_glm_bootstrap %>%
   geom_histogram() +
   geom_vline(xintercept = 25.5718, color = "blue") +
   geom_vline(xintercept = 25.5718 - 1.96 * bootstrap_glm_sd, color = "red") +
-  geom_vline(xintercept = 25.5718 + 1.96 * bootstrap_glm_sd, color = "red")
+  geom_vline(xintercept = 25.5718 + 1.96 * bootstrap_glm_sd, color = "red") +
+  labs(x = "Coefficient",
+       y = "Count")
 ```
 
 When finding our bootstrapped 95% confidence interval, we run into an error in many of our bootstrapped samples where "fitted probabilities numerically 0 or 1 occurred". We believe this occurs because we have perfect linear separation in some of our bootstrapped samples, which may occur since our n is quite small. This is interesting because it means that in some of our samples, our coefficient perfectly separates all cases of relapsers from non-relapsers, but this may simply occur as a product of bootstrapping on a small sample of data. Also as a result of that, our model converges to very extreme coefficient values, making it difficult to interpret confidence intervals.
 
-To deal with that problem, I attempted to filter out some of the most extreme values (coefficient values >= 100), and made the plot of the 95% confidence interval (i.e., [`{r} 25.5718 - 1.96 * bootstrap_glm_sd`, `{r} 25.5718 + 1.96 * bootstrap_glm_sd`]) above. The plot shows a larger 95% confidence interval than our standard glm output, which you'd expect because of the extreme values created by the perfect linear separation issue mentioned above. 
+To deal with that problem, I attempted to filter out some of the most extreme values (coefficient values >= 100), and made the plot of the 95% confidence interval (i.e., [`r 25.5718 - 1.96 * bootstrap_glm_sd`, `r 25.5718 + 1.96 * bootstrap_glm_sd`]) above. The plot shows a larger 95% confidence interval than our standard glm output, which you'd expect because of the extreme values created by the perfect linear separation issue mentioned above. 
 
 ## (d)
 
