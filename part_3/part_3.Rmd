@@ -1,0 +1,153 @@
+---
+title: "Part 3"
+author: "Sara Altman"
+date: "12/5/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)  
+library(modelr)
+```
+
+
+```{r, message=FALSE}
+data <- read_csv("../data/relapse_subjects.csv", na = c("", "NaN"))
+```
+
+#Prediction on the test set
+We didn't have enough data for a test set, so we used all our data in Part 2. Therefore, we use cross-validation to get an estimate of the test error.
+
+##Classification
+
+```{r}
+
+test_err <- function(test, mod, threshold) {
+  test <- as_tibble(test)
+  
+  errors <- 
+    test %>% 
+    mutate(
+      pred = predict(mod, newdata = test, type = "response"),
+      pred_group = ifelse(pred > threshold, 1, 0),
+      pred_error = ifelse(relIn6Mos != pred_group, 1, 0)
+    )
+  
+  return(mean(errors$pred_error))
+}
+
+test_err_fn <- function(test, mod, threshold) {
+  test <- as_tibble(test)
+  
+  errors <- 
+    test %>% 
+    mutate(
+      pred = predict(mod, newdata = test, type = "response"),
+      pred_group = ifelse(pred > threshold, 1, 0),
+      false_neg = ifelse(relIn6Mos > pred_group, 1, 0)
+    )
+  
+  return(mean(errors$false_neg))
+}
+
+test_err_fp <- function(test, mod, threshold) {
+  test <- as_tibble(test)
+  
+  errors <- 
+    test %>% 
+    mutate(
+      pred = predict(mod, newdata = test, type = "response"),
+      pred_group = ifelse(pred > threshold, 1, 0),
+      false_pos = ifelse(relIn6Mos < pred_group, 1, 0)
+    )
+  
+  return(mean(errors$false_pos))
+}
+
+set.seed(1)
+
+by_subj_cv <-
+  data %>% 
+  crossv_kfold(31)
+
+#for threshold = .5
+by_subj_cv %>% 
+  mutate(train = map(train, as_tibble),
+         model = map(train, ~glm(relIn6Mos ~ nacc_neutral_beta,
+                                  family = "binomial", 
+                                  data = .)),
+         error = map2_dbl(test, model, test_err, threshold = .4),
+         false_neg_rate = map2_dbl(test, model, test_err_fn, threshold = .4),
+         false_pos_rate = map2_dbl(test, model, test_err_fp, threshold = .4)) %>% 
+  summarise(mean_error = mean(error),
+            mean_fn_rate = mean(false_neg_rate),
+            mean_fp_rate = mean(false_pos_rate))
+```
+
+Our estimated test error is .23.  
+
+## Regression
+
+[insert hershel's regression cv error calculation]
+
+#Inference
+
+## (a)
+### Logistic regression model fitted on all data
+```{r}
+fit_all_data <- glm(relIn6Mos ~ nacc_neutral_beta,
+                    family = "binomial",
+                    data = data)
+
+summary(fit_all_data)
+```
+
+- The coefficient on nacc_neutral_beta is significant at the $\alpha = .001$ level. The p-value is .004. This means that, assuming the null hypothesis is true, the probability of observing a Wald statistic as extreme as 2.869 is .004. Here, the null hypothesis is that the coefficient on `nacc_neutral_beta` is 0. 
+- We only have one covariate. If the coefficient on this covariate really is 0, then the chance it will be significant at the $\alpha = .05$ level is 5\% (and is 1\% at the $\alpha = .01$ level). Therefore, the chance is low that this one covariate woulf be significant if the null were true. In contrast, if we had 100 covariates, we would expect 5 of them to be significant at the $\alpha = .05$ level and so we might not believe our results if it turned out that 5 of our coefficient were significant.  
+
+## (b)
+```{r}
+set.seed(1)
+
+by_subj_cv <-
+  by_subj %>% 
+  crossv_kfold(10)
+
+#for threshold = .5
+by_subj_cv %>% 
+  mutate(train = map(train, as_tibble),
+         model = map(train, ~glm(relIn6Mos ~ nacc_neutral_beta,
+                                  family = "binomial", 
+                                  data = .)),
+         summary = map(model, summary),
+         p_value = map_dbl(summary, ~.$coefficients[8]),
+         sig_05 = ifelse(p_value < .05, 1, 0),
+         sig_01 = ifelse(p_value < .01, 1, 0),
+         sig_001 = ifelse(p_value < .001, 1, 0))  %>% 
+  summarise(prop_05 = mean(sig_05),
+            prop_01 = mean(sig_01),
+            prop_001 = mean(sig_001)) %>% 
+  knitr::kable()
+```
+
+- We didn't have enough data for a test set and used cross-validation in the prediction part of the project. Therefore, we looked at significance of our coefficient in 10 folds.  
+- The coefficient on `nacc_neutral_beta` is significant in 100\% of the folds at the $\alpha = .05$ level and at and is significant 90\% of the time at the $\alpha = .01$ level.
+- Note that here, we run 31 hypothesis tests. Therefore, if the null is true, we should expect 5\% of our tests (1.55) to be significant at the $\alpha = .05$ level.  
+
+## (e)
+
+Post selection inference may be a problem here. We fit lots of different models during part 2, and are only reporting our p-values for one such model. Therefore, we may be favorably biasing our p-value. One way to correct for this would be to validate our findings on new data (i.e., the test set). However, as explained previously, we don't have a test set and this option is not available. 
+
+#Discussion
+
+##Practical use of models
+These models could be used for both predication and inference. The models could be used by clinicians to predict if a stimulant-dependent veteran will relapse after rehabilitation. The models could also be used to make inferences about the neuroscience of addiction.
+
+Our models should hold up well over time. There's no obvious reason to suspect that time will affect the relationship between nucleus accumbens activity and relapsing. 
+
+more follow-up data: survey to assess well-being 
+more brain regions  
