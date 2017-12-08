@@ -22,7 +22,7 @@ data <- read_csv("relapse_subjects.csv", na = c("", "NaN")) %>%
 
 #Prediction on the test set
 
-We didn't have enough data for a test set, so we used all our data in Part 2. Therefore, we use leave-one-out cross-validation to get an estimate of the test error.
+We didn't have enough data for a test set, so we used all our data in Part 2. We used leave-one-out cross-validation to get an estimate of the test error. The results of this process are reported here. 
 
 ##Classification
 
@@ -124,8 +124,11 @@ broom::tidy(fit_all_data) %>%
   knitr::kable()
 ```
 
-- The coefficient on nacc_neutral_beta is significant at the $\alpha = .001$ level. The p-value is .002. This means that, assuming the null hypothesis is true, the probability of observing a Wald statistic as extreme as 3.046 is .002. Here, the null hypothesis is that the coefficient on `nacc_neutral_beta` is 0. 
-- We only have one covariate. If the coefficient on this covariate really is 0, then the chance it will be significant at the $\alpha = .05$ level is 5\% (and is 1\% at the $\alpha = .01$ level). Therefore, the chance is low that this one covariate would be significant if the null were true. In contrast, if we had 100 covariates, we would expect 5 of them to be significant at the $\alpha = .05$ level and so we might not believe our results if it turned out that 5 of our coefficient were significant.  
+The coefficient on nacc_neutral_beta is significant at the $\alpha = .01$ level. The p-value is .002. This means that, if the null hypothesis is true, the probability of observing a Wald statistic as extreme as 3.046 is .002. Here, the null hypothesis is that the coefficient on `nacc_neutral_beta` is 0. 
+
+We only have one covariate. If the coefficient on this covariate really is 0, then the chance it will be significant at the $\alpha = .05$ level is 5\% (and is 1\% at the $\alpha = .01$ level). Therefore, the chance is low that this one covariate would be significant if the null were true. In contrast, if we had 100 covariates, we would expect 5 of them to be significant at the $\alpha = .05$ level and so we might not believe our results if it turned out that 5 of our coefficient were significant. 
+
+Therefore, we think we can believe our results that the coefficient on `nacc_neutral_beta` is significant. Our p-value may be favorably biased, however, for reasons discussed in part (e).
 
 ## (b)
 ```{r}
@@ -135,26 +138,26 @@ by_subj_cv <-
   data %>% 
   crossv_kfold(10)
 
-#for threshold = .5
 by_subj_cv %>% 
   mutate(train = map(train, as_tibble),
-         model = map(train, ~glm(relIn6Mos ~ nacc_neutral_beta,
+         test = map(test, as_tibble),
+         model_tr = map(train, ~glm(relIn6Mos ~ nacc_neutral_beta,
                                   family = "binomial", 
                                   data = .)),
-         summary = map(model, summary),
-         p_value = map_dbl(summary, ~.$coefficients[8]),
-         sig_05 = ifelse(p_value < .05, 1, 0),
-         sig_01 = ifelse(p_value < .01, 1, 0),
-         sig_001 = ifelse(p_value < .001, 1, 0))  %>% 
+         summary_tr = map(model_tr, summary),
+         p_value_tr = map_dbl(summary_tr, ~.$coefficients[8]),
+         sig_05 = ifelse(p_value_tr < .05, 1, 0),
+         sig_01 = ifelse(p_value_tr < .01, 1, 0),
+         sig_001 = ifelse(p_value_tr < .001, 1, 0)) %>% 
   summarise(`Proportion significant (alpha = .05)` = mean(sig_05),
             `Proportion significant (alpha = .01)`  = mean(sig_01),
             `Proportion significant (alpha = .001)`  = mean(sig_001)) %>% 
   knitr::kable()
 ```
 
-- We didn't have enough data for a test set and used cross-validation in the prediction part of the project. Therefore, we looked at significance of our coefficient in 10 folds.  
-- The coefficient on `nacc_neutral_beta` is significant in 100\% of the folds at the $\alpha = .05$ level and at and is significant 90\% of the time at the $\alpha = .01$ level.
-- Note that here, we run 10 hypothesis tests. Therefore, if the null is true, we should expect 5\% of our tests (half of a test) to be significant at the $\alpha = .05$ level.  
+We didn't have enough data for a test set and used cross-validation in the prediction part of the project. So for this part, we again used cross-validation. We created 10 folds and fit our model on the training data associated with each fold. The table above gives the proportion of folds where the coefficient on `nacc_neutral_beta` was significant, for three $\alpha$ levels.
+
+The coefficient on `nacc_neutral_beta` is significant in 100\% of the folds at the $\alpha = .05$ level and at and is significant 90\% of the time at the $\alpha = .01$ level.
 
 ## (c)
 
@@ -186,6 +189,8 @@ mod_glm_bootstrap <-
 bootstrap_glm_sd <- sd(mod_glm_bootstrap$coef)
 ```
 
+The following plot shows the bootstrap distribution of our coefficient, with our bootstrapped confidence interval indicated.
+
 ```{r}
 mod_glm_bootstrap %>% 
   ggplot(aes(x = coef)) +
@@ -197,9 +202,9 @@ mod_glm_bootstrap %>%
        y = "Count")
 ```
 
-When finding our bootstrapped 95% confidence interval, we run into an error in many of our bootstrapped samples where "fitted probabilities numerically 0 or 1 occurred". We believe this occurs because we have perfect linear separation in some of our bootstrapped samples, which may occur since our n is quite small. This is interesting because it means that in some of our samples, our coefficient perfectly separates all cases of relapsers from non-relapsers, but this may simply occur as a product of bootstrapping on a small sample of data. Also as a result of that, our model converges to very extreme coefficient values, making it difficult to interpret confidence intervals.
+When calculating our bootstrapped 95% confidence interval, we run into an error in many of our bootstrapped samples where "fitted probabilities numerically 0 or 1 occurred". We believe this occurs because we have perfect linear separation in some of our bootstrapped samples, which may occur since our n is quite small. This is interesting because it means that in some of our samples, our coefficient perfectly separates all cases of relapsers from non-relapsers, but this may simply occur as a product of bootstrapping on a small sample of data. Also as a result of that, our model converges to very extreme coefficient values, making it difficult to interpret confidence intervals.
 
-To deal with that problem, I attempted to filter out some of the most extreme values (coefficient values >= 100), and made the plot of the 95% confidence interval (i.e., [`r 25.5718 - 1.96 * bootstrap_glm_sd`, `r 25.5718 + 1.96 * bootstrap_glm_sd`]) above. The plot shows a larger 95% confidence interval than our standard glm output, which you'd expect because of the extreme values created by the perfect linear separation issue mentioned above. 
+To deal with this problem, we attempted to filter out some of the most extreme values (coefficient values >= 100), and made the plot of the 95% confidence interval (i.e., [`r 25.5718 - 1.96 * bootstrap_glm_sd`, `r 25.5718 + 1.96 * bootstrap_glm_sd`]) above. The plot shows a larger 95% confidence interval than our standard glm output, which you'd expect because of the extreme values created by the perfect linear separation issue mentioned above. 
 
 ## (d)
 
@@ -222,9 +227,10 @@ broom::tidy(mod_glm_betas) %>%
 ```
 
 
-We again see the perfect linear separation issue mentioend above when working with all the different beta values. This demonstrates why we took care to build parsimonious models in part 2 and 3, and that when working with small data, you must take a lot of care when adding features.
+We again see the perfect linear separation issue mentioned above when working with all the different beta values. This demonstrates why we took care to build parsimonious models in part 2 and 3, and that when working with small data, you must take a lot of care when adding features. 
 
-However to illustrate whether significant coefficients changed on a larger model, one interesting model to compare is one that includes all the different "neutral betas" in different brain regions.
+
+To see whether our significant coefficients changed on a larger model, we also created a model that includes the "neutral betas" for all brain regions in our data (the neutal betas are measure of activity when the subject is presented with neutral cues):
 
 ```{r}
 data_neutral_betas <- 
@@ -242,29 +248,32 @@ mod_glm_neutral_betas <- glm(relIn6Mos ~ ., family = "binomial", data = data_neu
 
 broom::tidy(mod_glm_neutral_betas) %>% 
   knitr::kable()
+
+cor_nacc_ains <- cor(data_neutral_betas$nacc_neutral_beta, data_neutral_betas$ains_neutral_beta)
 ```
 
-We can see here that `nacc_neutral_beta` is still significant but its p-value is slightly less than the original single variable glm above. This makes sense when considering the variables we added are activations during the same cues in different brain regions (e.g., `ains_neutral_beta` are the betas extracted from the anterior insula, a brain region thought to be involved in emotion). Based on prior knowledge of how these regions are connected, you would expect, for instance, the NAcc and Anterior Insula to be connected, so they would likely be correlated. Indeed, we can check the correlation in our data
-
-```{r}
-cor(data_neutral_betas$nacc_neutral_beta, data_neutral_betas$ains_neutral_beta)
-```
-
-So, compared to the single variable regression we tried above, the regression that includes different brain regions like the Anterior Insula, which may be correlated with the NAcc, can knock down the coefficient on the NAcc.
+We can see here that `nacc_neutral_beta` is still significant but its p-value is larger (and its coefficient is smaller) than the original single variable glm above. This makes sense when considering the variables we added are activations during the same cues in different brain regions (e.g., `ains_neutral_beta` are the betas extracted from the anterior insula, a brain region thought to be involved in emotion) and are likely to be correlated. Based on prior knowledge of how these regions are connected, you would expect, for instance, the NAcc and Anterior Insula to be correlated. Indeed, the correlation is `r round(cor_nacc_ains, 1)`.
 
 ## (e)
 
-Post selection inference may be a problem here. We fit lots of different models during part 2, and are only reporting our p-values for one such model. Therefore, we may be favorably biasing our p-value. One way to correct for this would be to validate our findings on new data (i.e., the test set). However, as explained previously, we don't have a test set and this option is not available. 
+Post selection inference may be a problem here. We selected our model after looking at our data. We chose the model that looked like it fit the data best and gave us a low estimated test error. However, when we test for significance, we do not take this selection process into account. This is likely to favorably bias our p-values. One way we could have dealt with this is by creating $b$ bootstrapped samples, using each to sample to create a model, and then looking at how often our coefficient ended up being significant. This would take our model selection process into account. Another way to dealing with post-selection inference would be to validate on new data. Since we didn't have a test set, we couldn't do this. 
+
+Since we only have one covariate, multiple hypothesis testing is generally not a problem and no corrections are needed. If our coefficient is actually zero (i.e., the null is true), there is only a 5% chance it will be significant at the $\alpha = .05$ level. However, when we used 10-fold cross-validation to get an estimate of how our model performs on test data, we did conduct multiple (10) hypotheses. We should therefore expect 5% of our rejections to be false positives. If we applied a Bonferroni correction here, our probability of declaring even one false positive would be no more than 5%. We didn't think it was particurly relevant, however, to apply a correction in this case, since our reasons for doing cross-validation in part (b) was just to do something equivalent to fitting our model on a test set.
+
+In part (d), we showed that `nacc_neutral_beta` is correlated `ains_neutral_beta` (in other words, NAcc activity is correlated with Anterior Insula activity when a person is presented with neutral cues). However, our model only has one coefficient and so this correlation should not affect our p-values. 
+
 
 ## (f)
 
-In our case, there is no causal relationship between NAcc activity when looking at neutral cues and relapse in 6 months, since it is impossible (and unethical) to experimentally manipulate relapse in 6 months. Since we believe addiction is the underlying mechanism increasing chance of relapse, there are many complex factors related to addiction that may be confoudning our ability to infer causality. For instance, various emotional, personality, and socio-economic factors play a role in addiction, so the variations in these factors may be creating confounds for relapse. In our study, we simply hope to find a reliable neural signal of risk for relapse within 6 months.
+It doesn't make sense to interpret the relationship between NAcc activity when looking at neutral cues and relapse in 6 months as causal. Addiction is the underlying mechanism increasing chance of relapse, and there are many complex factors related to addiction that may be confouding our ability to infer causality. For instance, various emotional, personality, and socio-economic factors play a role in addiction, so the variations in these factors may be creating confounds for relapse. We also know (as discussed above) that NAcc activity is correlated with activity in other brain regions. Therefore, we cannot interpret the relationship we discovered causally.
+
+We were not expecting to find a causal relationship, and causal relationship would not make much sense in this context. Our goal was to find a reliable neural signal of risk for relapse within 6 months.
 
 #Discussion
 
 These models could be used for both predication and inference. The models could be used by clinicians to predict if a stimulant-dependent veteran will relapse after rehabilitation. The models could also be used to make inferences about the neuroscience of addiction.
 
-Our models should hold up well over time. There's no obvious reason to suspect that time will affect the relationship between nucleus accumbens activity and relapsing. However, updating our data and then refitting the regression model after more time has passed would be useful. This  is because our current analysis removes those who hadn't relapsed at the time the data set was completed. However, this doesn't mean that they never relapsed. It would be useful to continually follow-up with them (if possible), update our data, and then refit our regression model. Note that this isn't relevant to our current classification model, since that predicts relapse in 6 months. 
+Our models should hold up well over time. There's no obvious reason to suspect that time will affect the relationship between nucleus accumbens activity and relapsing. However, updating our data and then refitting the regression model after more time has passed would be useful. This is because our current analysis removes those who hadn't relapsed at the time the data set was completed. However, this doesn't mean that they never relapsed. It would be useful to continually follow-up with them (if possible), update our data, and then refit our regression model. Note that this isn't relevant to our current classification model, since that predicts relapse in 6 months. 
 
 Users of our models (e.g., clinicians helping stimulant addicts) should be aware that are data set was small and therefore our models are vulnerable to overfitting. Although we used cross-validation to get an estimate of our test error, this is likely still an underestimate of the true test error. Therefore, users of the model should be cautious about making important decisions (e.g., whether or not to give a patient extra treatment or to release them) using our model, and should definitely not rely solely on our models' predictions. 
 
