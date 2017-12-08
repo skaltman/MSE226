@@ -120,7 +120,8 @@ fit_all_data <- glm(relIn6Mos ~ nacc_neutral_beta,
                     family = "binomial",
                     data = data)
 
-summary(fit_all_data)
+broom::tidy(fit_all_data) %>% 
+  knitr::kable()
 ```
 
 - The coefficient on nacc_neutral_beta is significant at the $\alpha = .001$ level. The p-value is .002. This means that, assuming the null hypothesis is true, the probability of observing a Wald statistic as extreme as 3.046 is .002. Here, the null hypothesis is that the coefficient on `nacc_neutral_beta` is 0. 
@@ -215,11 +216,11 @@ data_betas <-
 
 ```{r}
 mod_glm_betas <- glm(relIn6Mos ~ ., family = "binomial", data = data_betas)
+
+broom::tidy(mod_glm_betas) %>% 
+  knitr::kable()
 ```
 
-```{r}
-summary(mod_glm_betas)
-```
 
 We again see the perfect linear separation issue mentioend above when working with all the different beta values. This demonstrates why we took care to build parsimonious models in part 2 and 3, and that when working with small data, you must take a lot of care when adding features.
 
@@ -238,10 +239,9 @@ data_neutral_betas <-
 
 ```{r}
 mod_glm_neutral_betas <- glm(relIn6Mos ~ ., family = "binomial", data = data_neutral_betas)
-```
 
-```{r}
-summary(mod_glm_neutral_betas)
+broom::tidy(mod_glm_neutral_betas) %>% 
+  knitr::kable()
 ```
 
 We can see here that `nacc_neutral_beta` is still significant but its p-value is slightly less than the original single variable glm above. This makes sense when considering the variables we added are activations during the same cues in different brain regions (e.g., `ains_neutral_beta` are the betas extracted from the anterior insula, a brain region thought to be involved in emotion). Based on prior knowledge of how these regions are connected, you would expect, for instance, the NAcc and Anterior Insula to be connected, so they would likely be correlated. Indeed, we can check the correlation in our data
