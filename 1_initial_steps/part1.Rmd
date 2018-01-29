@@ -27,7 +27,7 @@ knitr::include_graphics("task.png")
 
 We acquired whole-brain images from the during each 2s period (called "TR"). For this portion of the project, we focused on a part of the brain that deals with dopamine (called the Nucleus Accumbens, or for short, "nacc"). In the future, we hope to add in different regions of interest (called "roi"), which should give us even more data to work with.
 
-## Subject-level Behvaioral Data.
+## Subject-level Behavioral Data.
 
 In addition to our trial-level brain data, we also collected subject-level behavioral data. These consist of useful demographic informaiton like "age", but also clinically relevant information, such as "years of use" or "lifetime depression". Also crucially, for our response variables, we followed-up with each patient for assessments of sobriety and relapse up to one year after scanning. These gave us a few interesting response variables:
 
@@ -39,7 +39,7 @@ In addition to our trial-level brain data, we also collected subject-level behav
 
 We want to know what characteristics (e.g., time sober, mental illness history, other drug use history, education level, age) are important predictors of methamphetamine use relapse, and if we can accurately predict relapse using these characteristics. We also want to know if NAcc response during a fMRI task can predict relapse well.
 
-This dataset is exciting because it can help us learn about what predicts relapse, as well as a potential way to predict if a new patient will relapse. This would be useful for people working with past and present methamphetamine users, as well as a addition to the scientific literature on addiction and relapse.
+This dataset is exciting because it can help us learn about what predicts relapse, as well as a potential way to predict if a new patient will relapse. This would be useful for people working with past and present methamphetamine users, as well as an addition to the scientific literature on addiction and relapse.
 
 # Data Prep / Exploration
 
@@ -49,7 +49,7 @@ This dataset is exciting because it can help us learn about what predicts relaps
 
 * Behavioral data preprocessing: We examined the spread of our potential response variables and excluded rows with "NA" for relapse, since we don't know if they relapsed or not. If a row does not have an "NA" value but has other "NA" values, we may still work with the remaining columns, since our dataset is limited. In addition, we checked for collinearity between our chosen response variables and other potential candidates (such as `days2sober`, `relapse6mo`), and eliminated covariates that were redundant and had many "NA"s.
 
-* Correlation plots: 
+* Correlations: Many of the covariates related to brain data are highly correlated (correlation > .8). We will exclude these during our analysis, especially since many of these covariates are not associated with the particular brain region we're interested in studying. 
 
 Since this dataset was challenging to work with, we spent much of our time in the process of acquiring, wrangling, and preprocessing the data. We are excited to have a dataset clean and ready for analyses!
 

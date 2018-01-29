@@ -1,0 +1,185 @@
+---
+title: "Classification code"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(glmnet)
+library(modelr)
+library(plotROC)
+```
+
+```{r, message=FALSE}
+#got approval to use entire dataset, so we're not splitting into test and train
+by_subj <- read_csv("~/GitHub/skaltman/MSE226/data/relapse_subjects.csv", na = c("", "NaN"))
+```
+
+Functions used to calculate errors
+```{r}
+test_err <- function(test, mod, threshold) {
+  test <- as_tibble(test)
+  
+  errors <- 
+    test %>% 
+    mutate(
+      pred = predict(mod, newdata = test, type = "response"),
+      pred_group = ifelse(pred > threshold, 1, 0),
+      pred_error = ifelse(relIn6Mos != pred_group, 1, 0)
+    )
+  
+  return(mean(errors$pred_error))
+}
+
+test_err_fn <- function(test, mod, threshold) {
+  test <- as_tibble(test)
+  
+  errors <- 
+    test %>% 
+    mutate(
+      pred = predict(mod, newdata = test, type = "response"),
+      pred_group = ifelse(pred > threshold, 1, 0),
+      false_neg = ifelse(relIn6Mos > pred_group, 1, 0)
+    )
+  
+  return(mean(errors$false_neg))
+}
+
+test_err_fp <- function(test, mod, threshold) {
+  test <- as_tibble(test)
+  
+  errors <- 
+    test %>% 
+    mutate(
+      pred = predict(mod, newdata = test, type = "response"),
+      pred_group = ifelse(pred > threshold, 1, 0),
+      false_pos = ifelse(relIn6Mos < pred_group, 1, 0)
+    )
+  
+  return(mean(errors$false_pos))
+}
+```
+
+Cross-validated logistic regression (LOOCV)
+```{r}
+set.seed(1)
+
+by_subj_cv <-
+  by_subj %>% 
+  crossv_kfold(31)
+
+#for threshold = .5
+by_subj_cv %>% 
+  mutate(train = map(train, as_tibble),
+         model = map(train, ~glm(relIn6Mos ~ nacc_neutral_beta,
+                                  family = "binomial", 
+                                  data = .)),
+         error = map2_dbl(test, model, test_err, threshold = .45),
+         false_neg_rate = map2_dbl(test, model, test_err_fn, threshold = .45),
+         false_pos_rate = map2_dbl(test, model, test_err_fp, threshold = .45)) %>% 
+  summarise(mean_error = mean(error),
+            mean_fn_rate = mean(false_neg_rate),
+            mean_fp_rate = mean(false_pos_rate)) %>% 
+  knitr::kable()
+```
+
+The following code fits the model on all the data:
+```{r}
+fit <- glm(relIn6Mos ~ nacc_neutral_beta, family = "binomial", data = by_subj)
+fit
+```
+
+Error rates for different thresholds:
+```{r}
+set.seed(1)
+
+false_neg_rates <- rep(0, 20)
+false_pos_rates <- rep(0, 20)
+error_rates <- rep(0, 20)
+
+for (t in seq(.05, 1, .05)) {
+  curr_est <-
+    by_subj_cv %>% 
+      mutate(train = map(train, as_tibble),
+             model = map(train, ~glm(relIn6Mos ~ nacc_neutral_beta,
+                                  family = "binomial", 
+                                  data = .)),
+              false_neg_rate = map2_dbl(test, 
+                                       model, 
+                                       test_err_fn, 
+                                       threshold = t),
+              false_pos_rate = map2_dbl(test, 
+                                        model, 
+                                        test_err_fp, 
+                                        threshold = t),
+              error = map2_dbl(test, 
+                               model, 
+                               test_err, 
+                               threshold = t)) %>% 
+      summarise(mean_fn_rate = mean(false_neg_rate),
+                mean_fp_rate = mean(false_pos_rate),
+                mean_err_rate = mean(error))
+  
+  false_pos_rates[t*20] = curr_est$mean_fp_rate
+  false_neg_rates[t*20] = curr_est$mean_fn_rate
+  error_rates[t*20] = curr_est$mean_err_rate
+}
+
+error_tibble <-
+  tibble(`FN rate` = false_neg_rates, 
+       `Error rate` = error_rates, 
+        Threshold = seq(.05, 1, .05)) 
+
+error_tibble %>% 
+  filter(Threshold < .6) %>%
+  knitr::kable()
+```
+
+```{r}
+error_tibble %>% 
+  ggplot(aes(`FN rate`, `Error rate`)) +
+  geom_point()
+```
+
+
+ROC curve
+```{r}
+set.seed(1)
+
+for_roc <-
+  by_subj_cv %>% 
+  mutate(train = map(train, as_tibble),
+         model = map(train, ~glm(relIn6Mos ~ nacc_neutral_beta,
+                                  family = "binomial", 
+                                  data = .)))
+
+false_pos_rates <- rep(0, 20)
+true_pos_rates <- rep(0, 20)
+
+for (t in seq(0.05, 1, .05)) {
+  curr_est <-
+    for_roc %>% 
+      mutate(true_pos_rate = 1 - map2_dbl(test, 
+                                       model, 
+                                       test_err_fn, 
+                                       threshold = t),
+              false_pos_rate = map2_dbl(test, 
+                                        model, 
+                                        test_err_fp, 
+                                        threshold = t)) %>% 
+      summarise(mean_tp_rate = mean(true_pos_rate),
+                mean_fp_rate = mean(false_pos_rate))
+  
+  false_pos_rates[t*20] = curr_est$mean_fp_rate
+  true_pos_rates[t*20] = curr_est$mean_tp_rate
+}
+
+
+tibble(true_pos_rates, false_pos_rates, t = seq(0.05, 1, .05)) %>% 
+  ggplot(aes(false_pos_rates, true_pos_rates)) +
+  geom_point(aes(size = t)) +
+  geom_line() +
+  labs(x = "False positive rate",
+       y = "True positive rate",
+       title = "ROC")
+```
